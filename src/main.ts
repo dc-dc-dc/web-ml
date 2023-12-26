@@ -1,4 +1,4 @@
-import { AbsOp, AddOp, CeilOp, CosOp, DivOp, FloorOp, MulOp, Op, SinOp, SqrtOp, SubOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp } from "./ops";
+import { AbsOp, AddOp, CeilOp, CosOp, DivOp, FloorOp, MulOp, Op, SinOp, SqrtOp, SubOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, MaxOp, MinOp, PowOp, RoundOp, ExpOp, Exp2Op, Log2Op, LogOp } from "./ops";
 
 type Dtype = "float32";
 const float32: Dtype = "float32";
@@ -67,7 +67,7 @@ class Tensor {
   }
 
   round() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: AbsOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: RoundOp, inputs: [this] });
   }
 
   floor() {
@@ -118,6 +118,43 @@ class Tensor {
     return new Tensor({ shape: this.shape, dtype: this._dtype, op: SqrtOp, inputs: [this] });
   }
 
+  log() {
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: LogOp, inputs: [this] });
+  }
+
+  log2() {
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: Log2Op, inputs: [this] });
+  }
+
+  exp() {
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: ExpOp, inputs: [this] });
+  }
+
+  exp2() {
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: Exp2Op, inputs: [this] });
+  }
+
+  // Binary ops
+  pow(t: Tensor) {
+    if (!isSameShape(this.shape, t.shape)) {
+      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
+    }
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: PowOp, inputs: [this, t] });
+  }
+
+  max(t: Tensor) {
+    if (!isSameShape(this.shape, t.shape)) {
+      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
+    }
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: MaxOp, inputs: [this, t] });
+  }
+
+  min(t: Tensor) {
+    if (!isSameShape(this.shape, t.shape)) {
+      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
+    }
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: MinOp, inputs: [this, t] });
+  }
 
   add(t: Tensor): Tensor {
     if (!isSameShape(this.shape, t.shape)) {

@@ -1,6 +1,6 @@
 class WebGpuBackend {
     private _device;
-    private static _instance;
+    private static _instance?: WebGpuBackend;
     constructor() { }
 
     public async init() {
@@ -10,6 +10,10 @@ class WebGpuBackend {
             const adapter = await gpu.requestAdapter();
             this._device = await adapter.requestDevice();
         } else {
+            if(!navigator.gpu) {
+                throw new Error("WebGPU not supported");
+            }
+            
             const adapter = await navigator.gpu.requestAdapter();
             this._device = await adapter.requestDevice();
         }
@@ -97,7 +101,8 @@ fn ${name}(
 `, [a]);
 }
 
-async function binary_op(name: string, char: string, a: Float32Array, b: Float32Array) {
+async function binary_op(name: string, char: string, a: Float32Array, b: Float32Array, is_func = false) {
+    const _func = is_func ? `${char}(a[gid.x], b[gid.x])` : `a[gid.x] ${char} b[gid.x]`;
     return (await WebGpuBackend.instance()).execute(name, `
       @group(0) @binding(0) var<storage, read_write> a: array<f32>;
       @group(0) @binding(1) var<storage, read_write> b: array<f32>;
@@ -106,7 +111,7 @@ async function binary_op(name: string, char: string, a: Float32Array, b: Float32
       fn ${name}(
         @builtin(global_invocation_id) gid: vec3<u32>
       ) {
-        a[gid.x] = a[gid.x] ${char} b[gid.x];
+        a[gid.x] = ${_func};
       }
     `, [a, b]);
 }
@@ -120,10 +125,10 @@ class UnaryOp implements Op {
 }
 
 class BinaryOp implements Op {
-    constructor(private _name: string, private _op: string) { }
+    constructor(private _name: string, private _op: string, private _isFunc = false) { }
 
     async eval(inputs: Float32Array[]): Promise<Float32Array> {
-        return binary_op(this._name, this._op, inputs[0], inputs[1]);
+        return binary_op(this._name, this._op, inputs[0], inputs[1], this._isFunc);
     }
 
 }
@@ -132,6 +137,10 @@ export const RoundOp = new UnaryOp("_round", "round");
 export const AbsOp = new UnaryOp("_abs", "abs");
 export const CeilOp = new UnaryOp("_ceil", "ceil");
 export const FloorOp = new UnaryOp("_floor", "floor");
+export const LogOp = new UnaryOp("_log", "log");
+export const ExpOp = new UnaryOp("_exp", "exp");
+export const Log2Op = new UnaryOp("_log2", "log2");
+export const Exp2Op = new UnaryOp("_exp2", "exp2");
 
 export const SqrtOp = new UnaryOp("_sqrt", "sqrt");
 export const SinOp = new UnaryOp("_sin", "sin");
@@ -148,3 +157,6 @@ export const AddOp = new BinaryOp("add", "+");
 export const SubOp = new BinaryOp("sub", "-");
 export const MulOp = new BinaryOp("mul", "*");
 export const DivOp = new BinaryOp("div", "/");
+export const MaxOp = new BinaryOp("_max", "max", true);
+export const MinOp = new BinaryOp("_min", "min", true);
+export const PowOp = new BinaryOp("_pow", "pow", true);
