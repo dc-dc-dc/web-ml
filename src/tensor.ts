@@ -14,6 +14,7 @@ function isSameShape(x: Shape, y: Shape): boolean {
   return true;
 }
 
+
 type TensorArgs = {
   shape: Shape;
   dtype?: Dtype;
@@ -30,7 +31,7 @@ export class Tensor {
   private _inputs?: Tensor[];
   private _evaluated: boolean = false;
 
-  public constructor({ shape, dtype = float32, op, inputs, data }: TensorArgs) {
+  constructor({ shape, dtype = float32, op, inputs, data }: TensorArgs) {
     if (shape.length < 0 || shape.length > 2) {
       throw new Error("Only 1D and 2D tensors are supported");
     }
@@ -166,9 +167,7 @@ export class Tensor {
 
   // Binary ops
   pow(t: Tensor | number) {
-    if (typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -176,9 +175,7 @@ export class Tensor {
   }
 
   max(t: Tensor | number) {
-    if (typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -186,9 +183,7 @@ export class Tensor {
   }
 
   min(t: Tensor | number) {
-    if (typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -196,9 +191,7 @@ export class Tensor {
   }
 
   add(t: Tensor | number): Tensor {
-    if (typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -206,9 +199,7 @@ export class Tensor {
   }
 
   sub(t: Tensor | number): Tensor {
-    if (typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -216,9 +207,7 @@ export class Tensor {
   }
 
   mul(t: Tensor | number): Tensor {
-    if (typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -226,9 +215,7 @@ export class Tensor {
   }
 
   div(t: Tensor | number): Tensor {
-    if (typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -236,9 +223,7 @@ export class Tensor {
   }
 
   equal(t: Tensor | number): Tensor {
-    if (typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -255,9 +240,7 @@ export class Tensor {
   }
 
   greater(t: Tensor | number): Tensor {
-    if(typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     if (!isSameShape(this.shape, t.shape)) {
       throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
     }
@@ -274,9 +257,7 @@ export class Tensor {
   }
 
   less(t: Tensor | number): Tensor {
-    if(typeof t === "number") {
-      t = new Tensor({ shape: this.shape, dtype: this._dtype, data: t });
-    }
+    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     return t.greater(this);
   }
 
