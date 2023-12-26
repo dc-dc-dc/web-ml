@@ -130,6 +130,20 @@ class BinaryOp implements Op {
 
 export const RoundOp = new UnaryOp("_round", "round");
 export const AbsOp = new UnaryOp("_abs", "abs");
+export const CeilOp = new UnaryOp("_ceil", "ceil");
+export const FloorOp = new UnaryOp("_floor", "floor");
+
+export const SqrtOp = new UnaryOp("_sqrt", "sqrt");
+export const SinOp = new UnaryOp("_sin", "sin");
+export const CosOp = new UnaryOp("_cos", "cos");
+export const TanOp = new UnaryOp("_tan", "tan");
+export const AsinOp = new UnaryOp("_asin", "asin");
+export const AcosOp = new UnaryOp("_acos", "acos");
+export const AtanOp = new UnaryOp("_atan", "atan");
+export const SinhOp = new UnaryOp("_sinh", "sinh");
+export const CoshOp = new UnaryOp("_cosh", "cosh");
+export const TanhOp = new UnaryOp("_tanh", "tanh");
+
 export const AddOp = new BinaryOp("add", "+");
 export const SubOp = new BinaryOp("sub", "-");
 export const MulOp = new BinaryOp("mul", "*");
