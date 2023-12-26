@@ -228,10 +228,3 @@ export class Tensor {
     }
   }
 }
-
-// console.time("creating");
-// const a = new Tensor({ shape: [2, 2], dtype: float32, data: [1, 2, 3, 4] });
-// const b = new Tensor({ shape: [2, 2], dtype: float32, data: [1, 2, 3, 4] });
-// const c = a.mul(b).add(b.add(a));
-// const d = c.mul(c);
-// console.log(await d.list());
