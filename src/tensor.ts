@@ -1,8 +1,8 @@
 import { AbsOp, AddOp, CeilOp, CosOp, DivOp, FloorOp, MulOp, Op, SinOp, SqrtOp, SubOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, MaxOp, MinOp, PowOp, RoundOp, ExpOp, Exp2Op, Log2Op, LogOp } from "./ops";
 
-type Dtype = "float32";
-const float32: Dtype = "float32";
-type Shape = number[];
+export type Dtype = "float32";
+export type Shape = number[];
+export const float32: Dtype = "float32";
 
 function isSameShape(x: Shape, y: Shape): boolean {
   if (x.length !== y.length) {
@@ -18,13 +18,13 @@ function isSameShape(x: Shape, y: Shape): boolean {
 
 type TensorArgs = {
   shape: Shape;
-  dtype: Dtype;
+  dtype?: Dtype;
   op?: Op;
   inputs?: Tensor[];
   data?: number[];
 }
 
-class Tensor {
+export class Tensor {
   private _data?: Float32Array;
   private _dtype: Dtype;
   private _shape: Shape;
@@ -32,7 +32,7 @@ class Tensor {
   private _inputs?: Tensor[];
   private _evaluated: boolean = false;
 
-  public constructor({ shape, dtype, op, inputs, data }: TensorArgs) {
+  public constructor({ shape, dtype = float32, op, inputs, data }: TensorArgs) {
     if(shape.length < 0 || shape.length > 2) {
       throw new Error("Only 1D and 2D tensors are supported");
     }
@@ -60,6 +60,10 @@ class Tensor {
 
   get shape() {
     return this._shape;
+  }
+
+  get dtype() {
+    return this._dtype;
   }
 
   abs() {
@@ -201,11 +205,13 @@ class Tensor {
   }
 
   async list(): Promise<number[] | number[][]> {
-    if (!this._evaluated) {
-      await this.eval();
-    }
     if(!this._data) {
-      throw new Error("Cannot list without data");
+      if (!this._evaluated) {
+        await this.eval();
+      }
+      if (!this._data) {
+        throw new Error("Cannot list without data");
+      }
     }
     switch(this.shape.length) {
     case 1:
@@ -223,9 +229,9 @@ class Tensor {
   }
 }
 
-console.time("creating");
-const a = new Tensor({ shape: [2, 2], dtype: float32, data: [1, 2, 3, 4] });
-const b = new Tensor({ shape: [2, 2], dtype: float32, data: [1, 2, 3, 4] });
-const c = a.mul(b).add(b.add(a));
-const d = c.mul(c);
-console.log(await d.list());
+// console.time("creating");
+// const a = new Tensor({ shape: [2, 2], dtype: float32, data: [1, 2, 3, 4] });
+// const b = new Tensor({ shape: [2, 2], dtype: float32, data: [1, 2, 3, 4] });
+// const c = a.mul(b).add(b.add(a));
+// const d = c.mul(c);
+// console.log(await d.list());

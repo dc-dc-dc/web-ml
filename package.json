@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "npx vite-node ./src/main.ts",
     "build": "tsc && vite build",
+    "test": "npx vite-node ./main.ts",
     "preview": "vite preview"
   },
   "devDependencies": {
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
     "vite-node": "^1.1.0",
+    "vitest": "^1.1.0",
     "webnode-gpu": "^0.0.5"
   }
 }
