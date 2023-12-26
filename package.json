@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "types": "./web-ml.d.ts",
   "scripts": {
     "dev": "npx vite-node ./src/main.ts",
     "build": "tsc && vite build",

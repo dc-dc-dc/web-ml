@@ -1,3 +1,4 @@
+import { uint32 } from "../src/dtype";
 import { Tensor, float32 } from "../src/tensor";
 import {test, expect} from "vitest";
 
@@ -49,9 +50,44 @@ test("min", async () => {
   await equalTensor(c, new Tensor({ shape: [2, 2], dtype: float32, data: [5, 2, 3, 4] }));
 });
 
-// test("pow", async () => {
-//   const a = new Tensor({ shape: [2, 2], dtype: float32, data: [5, 10, 15, 4] });
-//   const b = new Tensor({ shape: [2, 2], dtype: float32, data: [5, 2, 3, 8] });
-//   const c = a.pow(b);
-//   await equalTensor(c, new Tensor({ shape: [2, 2], dtype: float32, data: [3125, 100, 3375, 65536] }));
-// });
+test("equal", async () => {
+  const a = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 10, 15, 4] });
+  const b = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 2, 3, 8] });
+  const c = a.equal(b);
+  await equalTensor(c, new Tensor({ shape: [2, 2], dtype: float32, data: [1, 0, 0, 0] }));
+});
+
+test("not_equal", async () => {
+  const a = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 10, 15, 4] });
+  const b = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 2, 3, 8] });
+  const c = a.not_equal(b);
+  await equalTensor(c, new Tensor({ shape: [2, 2], dtype: float32, data: [0, 1, 1, 1] }));
+});
+
+test("greater", async () => {
+  const a = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 10, 15, 4] });
+  const b = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 2, 3, 8] });
+  const c = a.greater(b);
+  await equalTensor(c, new Tensor({ shape: [2, 2], dtype: float32, data: [0, 1, 1, 0] }));
+});
+
+test("greater_equal", async () => {
+  const a = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 10, 15, 4] });
+  const b = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 2, 3, 8] });
+  const c = a.greater_equal(b);
+  await equalTensor(c, new Tensor({ shape: [2, 2], dtype: float32, data: [1, 1, 1, 0] }));
+});
+
+test("less", async () => {
+  const a = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 10, 15, 4] });
+  const b = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 2, 3, 8] });
+  const c = a.less(b);
+  await equalTensor(c, new Tensor({ shape: [2, 2], dtype: float32, data: [0, 0, 0, 1] }));
+})
+
+test("less_equal", async () => {
+  const a = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 10, 15, 4] });
+  const b = new Tensor({ shape: [2, 2], dtype: float32, data: [5.0, 2, 3, 8] });
+  const c = a.less_equal(b);
+  await equalTensor(c, new Tensor({ shape: [2, 2], dtype: float32, data: [1, 0, 0, 1] }));
+})
