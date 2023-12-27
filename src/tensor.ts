@@ -14,10 +14,35 @@ function isSameShape(x: Shape, y: Shape): boolean {
   return true;
 }
 
+export function broadcast_shape(x: Shape, y: Shape): Shape {
+  let ndim1 = x.length;
+  let ndim2 = y.length;
+  let ndim = Math.max(ndim1, ndim2);
+  let diff = Math.abs(ndim1 - ndim2);
+  let big = ndim1 > ndim2 ? x : y;
+  let small = ndim1 > ndim2 ? y : x;
+  let out: Shape = Array.from({ length: ndim }, () => 0);
+  for (let i = ndim - 1; i >= diff; --i) {
+    let a = big[i];
+    let b = small[i - diff];
+    if (b == a) {
+      out[i] = a;
+    } else if (a == 1 || b == 1) {
+      out[i] = a * b;
+    } else {
+      throw new Error(`${x} and ${y} cannot be broadcasted`);
+    }
+  }
+  for (let i = diff - 1; i >= 0; --i) {
+    out[i] = big[i];
+  }
+  return out;
+}
 
 type TensorArgs = {
   shape: Shape;
   dtype?: Dtype;
+  strides?: number[];
   op?: Op;
   inputs?: Tensor[];
   data?: number | number[];
@@ -27,16 +52,24 @@ export class Tensor {
   private _data?: TypedArray;
   private _dtype: Dtype;
   private _shape: Shape;
+  private _strides: number[];
+  private _numElements: number;
   private _op?: Op;
   private _inputs?: Tensor[];
   private _evaluated: boolean = false;
 
-  constructor({ shape, dtype = float32, op, inputs, data }: TensorArgs) {
-    if (shape.length < 0 || shape.length > 2) {
-      throw new Error("Only 1D and 2D tensors are supported");
-    }
+  constructor({ shape, dtype = float32, op, inputs, data, strides }: TensorArgs) {
     this._dtype = dtype;
     this._shape = shape;
+    this._numElements = shape.reduce((a, b) => a * b, 1);
+    if (strides == null) {
+      this._strides = Array.from({ length: shape.length }, () => 0);
+      for (let i = shape.length - 1; i >= 0; --i) {
+        this._strides[i] = (i == shape.length - 1) ? 1 : this._strides[i + 1] * shape[i + 1];
+      }
+    } else {
+      this._strides = strides;
+    }
     if (op) {
       this._op = op;
       this._inputs = inputs;
@@ -44,25 +77,23 @@ export class Tensor {
       if (data == null) {
         throw new Error("Cannot create tensor without data or op");
       }
-      const numElements = shape.reduce((a, b) => a * b, 1);
       if (typeof data === "number") {
         switch (dtype) {
           case "float32":
-            this._data = new Float32Array(numElements).fill(data);
+            this._data = new Float32Array(this._numElements).fill(data);
             break;
           case "int32":
-            this._data = new Int32Array(numElements).fill(data);
+            this._data = new Int32Array(this._numElements).fill(data);
             break
           case "uint32":
-            this._data = new Uint32Array(numElements).fill(data);
+            this._data = new Uint32Array(this._numElements).fill(data);
             break;
           default:
             throw new Error(`Unsupported dtype: ${dtype}`);
         }
         return
       }
-
-      if (data.length !== numElements) {
+      if (data.length !== this._numElements) {
         throw new Error(`Data length ${data.length} does not match shape ${shape}`);
       }
       switch (dtype) {
@@ -87,6 +118,14 @@ export class Tensor {
 
   get dtype() {
     return this._dtype;
+  }
+
+  get numElements() {
+    return this._numElements;
+  }
+
+  get strides() {
+    return this._strides;
   }
 
   abs() {
@@ -265,6 +304,19 @@ export class Tensor {
     return this.less(t).add(this.equal(t));
   }
 
+  reshape(new_shape: Shape) {
+    if (broadcast_shape(this.shape, new_shape) !== new_shape) {
+      throw new Error("Cannot broadcast to new shape");
+    }
+
+    let strides = Array.from({ length: new_shape.length }, () => 0);
+    let diff = new_shape.length - this.shape.length;
+    for (let i = this.shape.length - 1; i >= 0; --i) {
+      strides[i + diff] = (this.shape[i] == 1) ? 0 : this._strides[i];
+    }
+    return new Tensor({ shape: new_shape, dtype: this._dtype, data: this._data, strides: strides });
+  }
+
   async eval() {
     if (this._evaluated) {
       return;
@@ -281,7 +333,7 @@ export class Tensor {
     this._evaluated = true;
   }
 
-  async list(): Promise<number[] | number[][]> {
+  async list(): Promise<number[] | number[][] | number[][][] | number[][][][]> {
     if (!this._data) {
       if (!this._evaluated) {
         await this.eval();
@@ -290,16 +342,43 @@ export class Tensor {
         throw new Error("Cannot list without data");
       }
     }
+
     switch (this.shape.length) {
       case 1:
-        return Array.from(this._data);
-      case 2:
-        const rows = this.shape.length > 1 ? this.shape[1] : this.shape[0];
-        let res = Array.from({ length: this.shape[0] }, () => Array(rows).fill(0));
-        for (let i = 0; i < this._data.length; i++) {
-          res[Math.floor(i / rows)][i % rows] = this._data[i];
+        return Array.from(this._data) as number[];
+      case 2: {
+        let res = Array.from({ length: this.shape[0] });
+        let currentIndex = 0;
+        for (let i = 0; i < this.shape[0]; i++) {
+          res[i] = Array.from(this._data.slice(currentIndex, currentIndex + this.shape[1]));
+          currentIndex += this.shape[1];
         }
-        return res;
+        return res as number[][];
+      }
+      case 3: {
+        const res = Array.from({ length: this.shape[0] }, () => Array.from({ length: this.shape[1] }));
+        let currentIndex = 0;
+        for (let i = 0; i < this.shape[0]; i++) {
+          for (let j = 0; j < this.shape[1]; j++) {
+              res[i][j] = Array.from(this._data.slice(currentIndex, currentIndex + this.shape[2]));
+              currentIndex += this.shape[2];
+          }
+        }
+        return res as number[][][];
+      }
+      case 4: {
+        const res = Array.from({length: this.shape[0]}, () => Array.from({length: this.shape[1]}, () => Array.from({length: this.shape[2]})));
+        let currentIndex = 0;
+        for(let i = 0; i < this.shape[0]; i++) {
+          for(let j = 0; j < this.shape[1]; j++) {
+            for(let k = 0; k < this.shape[2]; k++) {
+              res[i][j][k] = Array.from(this._data.slice(currentIndex, currentIndex + this.shape[3]));
+              currentIndex += this.shape[3];
+            }
+          }
+        }
+        return res as number[][][][];
+      }
       default:
         throw new Error("Unsupported shape");
     }
