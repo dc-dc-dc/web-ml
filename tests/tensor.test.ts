@@ -1,17 +1,19 @@
 import {test, expect} from "vitest";
-import { Tensor, broadcast_shape } from "../src/tensor";
+import { Tensor } from "../src/tensor";
+import { broadcastShape } from "../src/util";
 
-test("broadcast_shape", async () => {
-    expect(broadcast_shape([2, 2], [2, 2])).toEqual([2, 2]);
-    expect(broadcast_shape([2, 2], [2])).toEqual([2, 2]);
-    expect(broadcast_shape([2, 2], [1])).toEqual([2, 2]);
-    expect(broadcast_shape([1], [2, 2])).toEqual([2, 2]);
-    expect(broadcast_shape([2, 2], [])).toEqual([2, 2]);
-    expect(broadcast_shape([2, 2], [2, 1])).toEqual([2, 2]);
-    expect(broadcast_shape([2, 2], [1, 2])).toEqual([2, 2]);
-    expect(broadcast_shape([2, 2], [1, 1])).toEqual([2, 2]);
-    expect(broadcast_shape([2, 2], [2, 2, 2])).toEqual([2, 2, 2]);
-    expect(() => broadcast_shape([4, 3], [4])).toThrow();
+
+test("broadcastShape", async () => {
+    expect(broadcastShape([2, 2], [2, 2])).toEqual([2, 2]);
+    expect(broadcastShape([2, 2], [2])).toEqual([2, 2]);
+    expect(broadcastShape([2, 2], [1])).toEqual([2, 2]);
+    expect(broadcastShape([1], [2, 2])).toEqual([2, 2]);
+    expect(broadcastShape([2, 2], [])).toEqual([2, 2]);
+    expect(broadcastShape([2, 2], [2, 1])).toEqual([2, 2]);
+    expect(broadcastShape([2, 2], [1, 2])).toEqual([2, 2]);
+    expect(broadcastShape([2, 2], [1, 1])).toEqual([2, 2]);
+    expect(broadcastShape([2, 2], [2, 2, 2])).toEqual([2, 2, 2]);
+    expect(() => broadcastShape([4, 3], [4])).toThrow();
 });
 
 test("strides", async () => {

@@ -1,5 +1,5 @@
-import { uint32 } from "../src/dtype";
-import { Tensor, float32 } from "../src/tensor";
+import { float32 } from "../src/dtype";
+import { Tensor } from "../src/tensor";
 import {test, expect} from "vitest";
 
 async function equalTensor(a: Tensor, b: Tensor) {

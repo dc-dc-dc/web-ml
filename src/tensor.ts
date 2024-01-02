@@ -1,43 +1,7 @@
 import { uint32, float32, int32 } from "./dtype";
 import { AbsOp, AddOp, CeilOp, CosOp, DivOp, FloorOp, MulOp, SinOp, SqrtOp, SubOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, MaxOp, MinOp, PowOp, RoundOp, ExpOp, Exp2Op, Log2Op, LogOp, EqualOp, GreaterOp, NegOp } from "./ops";
 import type { Shape, Dtype, Op, TypedArray } from "./web-ml";
-
-function isSameShape(x: Shape, y: Shape): boolean {
-  if (x.length !== y.length) {
-    return false;
-  }
-  for (let i = 0; i < x.length; i++) {
-    if (x[i] !== y[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-export function broadcast_shape(x: Shape, y: Shape): Shape {
-  let ndim1 = x.length;
-  let ndim2 = y.length;
-  let ndim = Math.max(ndim1, ndim2);
-  let diff = Math.abs(ndim1 - ndim2);
-  let big = ndim1 > ndim2 ? x : y;
-  let small = ndim1 > ndim2 ? y : x;
-  let out: Shape = Array.from({ length: ndim }, () => 0);
-  for (let i = ndim - 1; i >= diff; --i) {
-    let a = big[i];
-    let b = small[i - diff];
-    if (b == a) {
-      out[i] = a;
-    } else if (a == 1 || b == 1) {
-      out[i] = a * b;
-    } else {
-      throw new Error(`${x} and ${y} cannot be broadcasted`);
-    }
-  }
-  for (let i = diff - 1; i >= 0; --i) {
-    out[i] = big[i];
-  }
-  return out;
-}
+import { isSameShape, broadcastShape } from "./util";
 
 type TensorArgs = {
   shape: Shape;
@@ -239,7 +203,7 @@ export class Tensor {
 
   private binaryOp(t: Tensor | number, op: Op) {
     t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    let new_shape = broadcast_shape(this.shape, t.shape);
+    let new_shape = broadcastShape(this.shape, t.shape);
     let [a, b] = [this.reshape(new_shape), t.reshape(new_shape)];
     return new Tensor({ shape: this.shape, dtype: this._dtype, op: op, inputs: [a, b] });
   }
@@ -278,7 +242,7 @@ export class Tensor {
     if (isSameShape(this.shape, new_shape)) {
       return this;
     }
-    if (!isSameShape(broadcast_shape(this.shape, new_shape), new_shape)) {
+    if (!isSameShape(broadcastShape(this.shape, new_shape), new_shape)) {
       throw new Error("Cannot broadcast to new shape");
     }
     let strides = Array.from({ length: new_shape.length }, () => 0);
