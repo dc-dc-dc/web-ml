@@ -2,7 +2,9 @@ import type { Dtype, Op, TypedArray } from "./web-ml";
 import { getDtypeSize, float32, int32, uint32 } from "./dtype";
 
 class WebGpuBackend {
-    private _device;
+    // this is set in init since constructors cant be async
+    private _device!: GPUDevice;
+    private _adapter!: GPUAdapter;
     private static _instance?: WebGpuBackend;
     constructor() { }
 
@@ -11,14 +13,21 @@ class WebGpuBackend {
             const webnodegpu = await import("webnode-gpu");
             const gpu = webnodegpu.create([]);
             const adapter = await gpu.requestAdapter();
-            this._device = await adapter.requestDevice();
+            if(!adapter) {
+                throw new Error("WebGPU not supported");
+            }
+            this._adapter = adapter;
+            this._device = await this._adapter.requestDevice();
         } else {
             if (!navigator.gpu) {
                 throw new Error("WebGPU not supported");
             }
-
             const adapter = await navigator.gpu.requestAdapter();
-            this._device = await adapter.requestDevice();
+            if(!adapter) {
+                throw new Error("WebGPU not supported");
+            }
+            this._adapter = adapter;
+            this._device = await this._adapter.requestDevice();
         }
     }
 
