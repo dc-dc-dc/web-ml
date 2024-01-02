@@ -5,6 +5,7 @@ test("broadcast_shape", async () => {
     expect(broadcast_shape([2, 2], [2, 2])).toEqual([2, 2]);
     expect(broadcast_shape([2, 2], [2])).toEqual([2, 2]);
     expect(broadcast_shape([2, 2], [1])).toEqual([2, 2]);
+    expect(broadcast_shape([1], [2, 2])).toEqual([2, 2]);
     expect(broadcast_shape([2, 2], [])).toEqual([2, 2]);
     expect(broadcast_shape([2, 2], [2, 1])).toEqual([2, 2]);
     expect(broadcast_shape([2, 2], [1, 2])).toEqual([2, 2]);

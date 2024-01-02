@@ -1,6 +1,5 @@
 import type { Dtype, Op, TypedArray } from "./web-ml";
 import { getDtypeSize, float32, int32, uint32 } from "./dtype";
-import { Tensor } from "./tensor";
 
 class WebGpuBackend {
     private _device;

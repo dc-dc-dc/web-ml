@@ -1,5 +1,5 @@
 import { uint32, float32, int32 } from "./dtype";
-import { AbsOp, AddOp, CeilOp, CosOp, DivOp, FloorOp, MulOp, SinOp, SqrtOp, SubOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, MaxOp, MinOp, PowOp, RoundOp, ExpOp, Exp2Op, Log2Op, LogOp, EqualOp, NotEqualOp, GreaterOp, NegOp } from "./ops";
+import { AbsOp, AddOp, CeilOp, CosOp, DivOp, FloorOp, MulOp, SinOp, SqrtOp, SubOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, MaxOp, MinOp, PowOp, RoundOp, ExpOp, Exp2Op, Log2Op, LogOp, EqualOp, GreaterOp, NegOp } from "./ops";
 import type { Shape, Dtype, Op, TypedArray } from "./web-ml";
 
 function isSameShape(x: Shape, y: Shape): boolean {
@@ -206,72 +206,42 @@ export class Tensor {
 
   // Binary ops
   pow(t: Tensor | number) {
-    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: PowOp, inputs: [this, t] });
+    return this.binaryOp(t, PowOp);
   }
 
   max(t: Tensor | number) {
-    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: MaxOp, inputs: [this, t] });
+    return this.binaryOp(t, MaxOp);
   }
 
   min(t: Tensor | number) {
-    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: MinOp, inputs: [this, t] });
+    return this.binaryOp(t, MinOp);
   }
 
   add(t: Tensor | number): Tensor {
-    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: AddOp, inputs: [this, t] });
+    return this.binaryOp(t, AddOp);
   }
 
   sub(t: Tensor | number): Tensor {
-    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: SubOp, inputs: [this, t] });
+    return this.binaryOp(t, SubOp);
   }
 
   mul(t: Tensor | number): Tensor {
-    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: MulOp, inputs: [this, t] });
+    return this.binaryOp(t, MulOp);
   }
 
   div(t: Tensor | number): Tensor {
-    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: DivOp, inputs: [this, t] });
+    return this.binaryOp(t, DivOp);
   }
 
   equal(t: Tensor | number): Tensor {
+    return this.binaryOp(t, EqualOp);
+  }
+
+  private binaryOp(t: Tensor | number, op: Op) {
     t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({
-      shape: this.shape,
-      dtype: float32,
-      op: EqualOp,
-      inputs: [this, t],
-    });
+    let new_shape = broadcast_shape(this.shape, t.shape);
+    let [a, b] = [this.reshape(new_shape), t.reshape(new_shape)];
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: op, inputs: [a, b] });
   }
 
   not_equal(t: Tensor | number): Tensor {
@@ -305,10 +275,12 @@ export class Tensor {
   }
 
   reshape(new_shape: Shape) {
-    if (broadcast_shape(this.shape, new_shape) !== new_shape) {
+    if (isSameShape(this.shape, new_shape)) {
+      return this;
+    }
+    if (!isSameShape(broadcast_shape(this.shape, new_shape), new_shape)) {
       throw new Error("Cannot broadcast to new shape");
     }
-
     let strides = Array.from({ length: new_shape.length }, () => 0);
     let diff = new_shape.length - this.shape.length;
     for (let i = this.shape.length - 1; i >= 0; --i) {
@@ -342,7 +314,7 @@ export class Tensor {
         throw new Error("Cannot list without data");
       }
     }
-
+    // TODO: this is a bit ugly and could be optimized
     switch (this.shape.length) {
       case 1:
         return Array.from(this._data) as number[];
@@ -360,18 +332,18 @@ export class Tensor {
         let currentIndex = 0;
         for (let i = 0; i < this.shape[0]; i++) {
           for (let j = 0; j < this.shape[1]; j++) {
-              res[i][j] = Array.from(this._data.slice(currentIndex, currentIndex + this.shape[2]));
-              currentIndex += this.shape[2];
+            res[i][j] = Array.from(this._data.slice(currentIndex, currentIndex + this.shape[2]));
+            currentIndex += this.shape[2];
           }
         }
         return res as number[][][];
       }
       case 4: {
-        const res = Array.from({length: this.shape[0]}, () => Array.from({length: this.shape[1]}, () => Array.from({length: this.shape[2]})));
+        const res = Array.from({ length: this.shape[0] }, () => Array.from({ length: this.shape[1] }, () => Array.from({ length: this.shape[2] })));
         let currentIndex = 0;
-        for(let i = 0; i < this.shape[0]; i++) {
-          for(let j = 0; j < this.shape[1]; j++) {
-            for(let k = 0; k < this.shape[2]; k++) {
+        for (let i = 0; i < this.shape[0]; i++) {
+          for (let j = 0; j < this.shape[1]; j++) {
+            for (let k = 0; k < this.shape[2]; k++) {
               res[i][j][k] = Array.from(this._data.slice(currentIndex, currentIndex + this.shape[3]));
               currentIndex += this.shape[3];
             }
