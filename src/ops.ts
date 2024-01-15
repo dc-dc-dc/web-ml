@@ -190,7 +190,7 @@ class BinaryOp implements Op {
     constructor(private _name: string, private _op: string, private _isFunc = false) { }
 
     async eval(inputs: Tensor[]): Promise<Tensor> {
-        if (inputs.length != 2) throw new Error("BinaryOp requires two inputs");
+        if (inputs.length < 2) throw new Error("BinaryOp requires two inputs");
         return binary_op(this._name, this._op, inputs[0], inputs[1], this._isFunc);
     }
 }
@@ -198,17 +198,15 @@ class BinaryOp implements Op {
 class CompareOp implements Op {
     constructor(private _name: string, private _op: string) { }
     async eval(inputs: Tensor[]): Promise<TypedArray> {
-        if (inputs.length != 2) throw new Error("CompareOp requires two inputs");
+        if (inputs.length < 2) throw new Error("CompareOp requires two inputs");
         return compare_op(this._name, this._op, inputs[0], inputs[1]);
     }
 }
 
 class Reshape implements Op {
-    eval(inputs: Tensor[]): Promise<TypedArray> {
-        switch (inputs[0].ndim) {
-
-        }
-        return new Float32Array([]);
+    async eval(inputs: Tensor[]): Promise<TypedArray> {
+        const res = new Float32Array();
+        return res;
     }
 
 }

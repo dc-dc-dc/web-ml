@@ -284,7 +284,7 @@ export class Tensor {
       }
     }
     const _op = await getOp(this._op);
-    this._data = await _op.eval(this._inputs);
+    this._data = await _op.eval([...this._inputs, this]);
     this._evaluated = true;
   }
 
@@ -298,7 +298,7 @@ export class Tensor {
       }
     }
     // TODO: this is a bit ugly and could be optimized
-    switch (this.shape.length) {
+    switch (this.ndim) {
       case 1:
         return Array.from(this._data) as number[];
       case 2: {
