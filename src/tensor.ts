@@ -1,15 +1,33 @@
-import { uint32, float32, int32 } from "./dtype";
-import { AbsOp, AddOp, CeilOp, CosOp, DivOp, FloorOp, MulOp, SinOp, SqrtOp, SubOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, MaxOp, MinOp, PowOp, RoundOp, ExpOp, Exp2Op, Log2Op, LogOp, EqualOp, GreaterOp, NegOp } from "./ops";
-import type { Shape, Dtype, Op, TypedArray } from "./web-ml";
+import { float32 } from "./dtype";
+import type { Shape, Dtype, Op, TypedArray, OpId } from "./web-ml";
 import { isSameShape, broadcastShape } from "./util";
 
 type TensorArgs = {
   shape: Shape;
   dtype?: Dtype;
   strides?: number[];
-  op?: Op;
+  op?: OpId;
   inputs?: Tensor[];
   data?: number | number[];
+}
+
+const op_cache: Map<OpId, Op> = new Map();
+
+async function getOp(op: OpId): Promise<Op> {
+  if (op_cache.size != 0) {
+    if (!op_cache.has(op)) {
+      throw new Error(`Op ${op} not found`);
+    }
+    return op_cache.get(op)!;
+  }
+  const wgpu_ops = await import("./ops").then(m => m.default);
+  for (let [key, value] of Object.entries(wgpu_ops)) {
+    op_cache.set(key as OpId, value);
+  }
+  if (!op_cache.has(op)) {
+    throw new Error(`Op ${op} not found`);
+  }
+  return op_cache.get(op)!;
 }
 
 export class Tensor {
@@ -18,12 +36,12 @@ export class Tensor {
   private _shape: Shape;
   private _strides: number[];
   private _numElements: number;
-  private _op?: Op;
+  private _op?: OpId;
   private _inputs?: Tensor[];
   private _evaluated: boolean = false;
 
   constructor({ shape, dtype = float32, op, inputs, data, strides }: TensorArgs) {
-    this._dtype = dtype;
+    this._dtype = dtype ?? float32;
     this._shape = shape;
     this._numElements = shape.reduce((a, b) => a * b, 1);
     if (strides == null) {
@@ -57,6 +75,7 @@ export class Tensor {
         }
         return
       }
+      // TODO: this breaks expanding
       if (data.length !== this._numElements) {
         throw new Error(`Data length ${data.length} does not match shape ${shape}`);
       }
@@ -76,6 +95,10 @@ export class Tensor {
     }
   }
 
+  get ndim() {
+    return this._shape.length;
+  }
+
   get shape() {
     return this._shape;
   }
@@ -92,116 +115,120 @@ export class Tensor {
     return this._strides;
   }
 
+  get data() {
+    return this._data;
+  }
+
   abs() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: AbsOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "abs", inputs: [this] });
   }
 
   round() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: RoundOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "round", inputs: [this] });
   }
 
   floor() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: FloorOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "floor", inputs: [this] });
   }
 
   ceil() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: CeilOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "ceil", inputs: [this] });
   }
 
   sin() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: SinOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "sin", inputs: [this] });
   }
 
   cos() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: CosOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "cos", inputs: [this] });
   }
 
   tan() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: TanOp, inputs: [this] })
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "tan", inputs: [this] })
   }
 
   sinh() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: SinhOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "sinh", inputs: [this] });
   }
 
   cosh() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: CoshOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "cosh", inputs: [this] });
   }
 
   tanh() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: TanhOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "tanh", inputs: [this] });
   }
 
   asin() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: AsinOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "asin", inputs: [this] });
   }
 
   acos() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: AcosOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "acos", inputs: [this] });
   }
 
   atan() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: AtanOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "atan", inputs: [this] });
   }
 
   sqrt() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: SqrtOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "sqrt", inputs: [this] });
   }
 
   log() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: LogOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "log", inputs: [this] });
   }
 
   log2() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: Log2Op, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "log2", inputs: [this] });
   }
 
   exp() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: ExpOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "exp", inputs: [this] });
   }
 
   exp2() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: Exp2Op, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "exp2", inputs: [this] });
   }
 
   neg() {
-    return new Tensor({ shape: this.shape, dtype: this._dtype, op: NegOp, inputs: [this] });
+    return new Tensor({ shape: this.shape, dtype: this._dtype, op: "neg", inputs: [this] });
   }
 
   // Binary ops
   pow(t: Tensor | number) {
-    return this.binaryOp(t, PowOp);
+    return this.binaryOp(t, "pow");
   }
 
   max(t: Tensor | number) {
-    return this.binaryOp(t, MaxOp);
+    return this.binaryOp(t, "max");
   }
 
   min(t: Tensor | number) {
-    return this.binaryOp(t, MinOp);
+    return this.binaryOp(t, "min");
   }
 
   add(t: Tensor | number): Tensor {
-    return this.binaryOp(t, AddOp);
+    return this.binaryOp(t, "add");
   }
 
   sub(t: Tensor | number): Tensor {
-    return this.binaryOp(t, SubOp);
+    return this.binaryOp(t, "sub");
   }
 
   mul(t: Tensor | number): Tensor {
-    return this.binaryOp(t, MulOp);
+    return this.binaryOp(t, "mul");
   }
 
   div(t: Tensor | number): Tensor {
-    return this.binaryOp(t, DivOp);
+    return this.binaryOp(t, "div");
   }
 
   equal(t: Tensor | number): Tensor {
-    return this.binaryOp(t, EqualOp);
+    return this.binaryOp(t, "equal");
   }
 
-  private binaryOp(t: Tensor | number, op: Op) {
+  private binaryOp(t: Tensor | number, op: OpId) {
     t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
     let new_shape = broadcastShape(this.shape, t.shape);
     let [a, b] = [this.reshape(new_shape), t.reshape(new_shape)];
@@ -213,16 +240,7 @@ export class Tensor {
   }
 
   greater(t: Tensor | number): Tensor {
-    t = typeof t === "number" ? new Tensor({ shape: this.shape, dtype: this._dtype, data: t }) : t;
-    if (!isSameShape(this.shape, t.shape)) {
-      throw new Error(`Shape mismatch: ${t.shape} !== ${this.shape}`);
-    }
-    return new Tensor({
-      shape: this.shape,
-      dtype: float32,
-      op: GreaterOp,
-      inputs: [this, t],
-    });
+    return this.binaryOp(t, "greater");
   }
 
   greater_equal(t: Tensor | number): Tensor {
@@ -250,7 +268,7 @@ export class Tensor {
     for (let i = this.shape.length - 1; i >= 0; --i) {
       strides[i + diff] = (this.shape[i] == 1) ? 0 : this._strides[i];
     }
-    return new Tensor({ shape: new_shape, dtype: this._dtype, data: this._data, strides: strides });
+    return new Tensor({ shape: new_shape, dtype: this._dtype, strides: strides, op: "reshape", inputs: [this] });
   }
 
   async eval() {
@@ -265,7 +283,8 @@ export class Tensor {
         await input.eval();
       }
     }
-    this._data = await this._op.eval(this._inputs.map(t => t._data!));
+    const _op = await getOp(this._op);
+    this._data = await _op.eval(this._inputs);
     this._evaluated = true;
   }
 

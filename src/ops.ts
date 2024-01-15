@@ -1,5 +1,6 @@
-import type { Dtype, Op, TypedArray } from "./web-ml";
+import type { Dtype, Op, OpId, TypedArray } from "./web-ml";
 import { getDtypeSize, float32, int32, uint32 } from "./dtype";
+import { Tensor } from "./tensor";
 
 class WebGpuBackend {
     // this is set in init since constructors cant be async
@@ -13,7 +14,7 @@ class WebGpuBackend {
             const webnodegpu = await import("webnode-gpu");
             const gpu = webnodegpu.create([]);
             const adapter = await gpu.requestAdapter();
-            if(!adapter) {
+            if (!adapter) {
                 throw new Error("WebGPU not supported");
             }
             this._adapter = adapter;
@@ -23,7 +24,7 @@ class WebGpuBackend {
                 throw new Error("WebGPU not supported");
             }
             const adapter = await navigator.gpu.requestAdapter();
-            if(!adapter) {
+            if (!adapter) {
                 throw new Error("WebGPU not supported");
             }
             this._adapter = adapter;
@@ -132,27 +133,26 @@ function dtypeToWebgpuType(t: Dtype): string {
     } else if (t === uint32) {
         return "u32";
     }
-    throw new Error("Unsupported type");
+    throw new Error(`Unsupported type=${t}`);
 }
 
-async function unary_op(name: string, op: string, a: TypedArray) {
-    const dtype = getDtypeFromTypedArray(a);
+async function unary_op(name: string, op: string, a: Tensor) {
     return (await WebGpuBackend.instance()).execute(name, `
-@group(0) @binding(0) var<storage, read_write> a: array<${dtypeToWebgpuType(dtype)}>;
+@group(0) @binding(0) var<storage, read_write> a: array<${dtypeToWebgpuType(a.dtype)}>;
 @compute @workgroup_size(1)
 fn ${name}(
     @builtin(global_invocation_id) gid: vec3<u32>
 ) {
     a[gid.x] = ${op}(a[gid.x]);
 }
-`, [a], float32);
+`, [a.data], float32);
 }
 
-async function binary_op(name: string, char: string, a: TypedArray, b: TypedArray, is_func = false) {
+async function binary_op(name: string, char: string, a: Tensor, b: Tensor, is_func = false) {
     const _func = is_func ? `${char}(a[gid.x], b[gid.x])` : `a[gid.x] ${char} b[gid.x]`;
     return (await WebGpuBackend.instance()).execute(name, `
-      @group(0) @binding(0) var<storage, read_write> a: array<${dtypeToWebgpuType(getDtypeFromTypedArray(a))}>;
-      @group(0) @binding(1) var<storage, read_write> b: array<${dtypeToWebgpuType(getDtypeFromTypedArray(b))}>;
+      @group(0) @binding(0) var<storage, read_write> a: array<${dtypeToWebgpuType(a.dtype)}>;
+      @group(0) @binding(1) var<storage, read_write> b: array<${dtypeToWebgpuType(b.dtype)}>;
   
       @compute @workgroup_size(1) 
       fn ${name}(
@@ -160,13 +160,13 @@ async function binary_op(name: string, char: string, a: TypedArray, b: TypedArra
       ) {
         a[gid.x] = ${_func};
       }
-    `, [a, b], float32);
+    `, [a.data, b.data], float32);
 }
 
-async function compare_op(name: string, char: string, a: TypedArray, b: TypedArray) {
+async function compare_op(name: string, char: string, a: Tensor, b: Tensor) {
     return (await WebGpuBackend.instance()).execute(name, `
-        @group(0) @binding(0) var<storage, read_write> a: array<${dtypeToWebgpuType(getDtypeFromTypedArray(a))}>;
-        @group(0) @binding(1) var<storage, read_write> b: array<${dtypeToWebgpuType(getDtypeFromTypedArray(b))}>;
+        @group(0) @binding(0) var<storage, read_write> a: array<${dtypeToWebgpuType(a.dtype)}>;
+        @group(0) @binding(1) var<storage, read_write> b: array<${dtypeToWebgpuType(b.dtype)}>;
     
         @compute @workgroup_size(1) 
         fn ${name}(
@@ -174,13 +174,13 @@ async function compare_op(name: string, char: string, a: TypedArray, b: TypedArr
         ) {
             a[gid.x] = select(0.0f, 1.0f, a[gid.x] ${char} b[gid.x]); 
         }
-    `, [a, b], float32);
+    `, [a.data, b.data], float32);
 }
 
 class UnaryOp implements Op {
     constructor(private _name: string, private _op: string) { }
 
-    async eval(inputs: TypedArray[]): Promise<TypedArray> {
+    async eval(inputs: Tensor[]): Promise<TypedArray> {
         if (inputs.length != 1) throw new Error("UnaryOp requires one input");
         return unary_op(this._name, this._op, inputs[0]);
     }
@@ -189,7 +189,7 @@ class UnaryOp implements Op {
 class BinaryOp implements Op {
     constructor(private _name: string, private _op: string, private _isFunc = false) { }
 
-    async eval(inputs: TypedArray[]): Promise<TypedArray> {
+    async eval(inputs: Tensor[]): Promise<Tensor> {
         if (inputs.length != 2) throw new Error("BinaryOp requires two inputs");
         return binary_op(this._name, this._op, inputs[0], inputs[1], this._isFunc);
     }
@@ -197,40 +197,58 @@ class BinaryOp implements Op {
 
 class CompareOp implements Op {
     constructor(private _name: string, private _op: string) { }
-    async eval(inputs: TypedArray[]): Promise<TypedArray> {
-        if(inputs.length != 2) throw new Error("CompareOp requires two inputs");
+    async eval(inputs: Tensor[]): Promise<TypedArray> {
+        if (inputs.length != 2) throw new Error("CompareOp requires two inputs");
         return compare_op(this._name, this._op, inputs[0], inputs[1]);
     }
 }
 
-export const NegOp = new UnaryOp("_neg", "-");
-export const RoundOp = new UnaryOp("_round", "round");
-export const AbsOp = new UnaryOp("_abs", "abs");
-export const CeilOp = new UnaryOp("_ceil", "ceil");
-export const FloorOp = new UnaryOp("_floor", "floor");
-export const LogOp = new UnaryOp("_log", "log");
-export const ExpOp = new UnaryOp("_exp", "exp");
-export const Log2Op = new UnaryOp("_log2", "log2");
-export const Exp2Op = new UnaryOp("_exp2", "exp2");
+class Reshape implements Op {
+    eval(inputs: Tensor[]): Promise<TypedArray> {
+        switch (inputs[0].ndim) {
 
-export const SqrtOp = new UnaryOp("_sqrt", "sqrt");
-export const SinOp = new UnaryOp("_sin", "sin");
-export const CosOp = new UnaryOp("_cos", "cos");
-export const TanOp = new UnaryOp("_tan", "tan");
-export const AsinOp = new UnaryOp("_asin", "asin");
-export const AcosOp = new UnaryOp("_acos", "acos");
-export const AtanOp = new UnaryOp("_atan", "atan");
-export const SinhOp = new UnaryOp("_sinh", "sinh");
-export const CoshOp = new UnaryOp("_cosh", "cosh");
-export const TanhOp = new UnaryOp("_tanh", "tanh");
+        }
+        return new Float32Array([]);
+    }
 
-export const AddOp = new BinaryOp("add", "+");
-export const SubOp = new BinaryOp("sub", "-");
-export const MulOp = new BinaryOp("mul", "*");
-export const DivOp = new BinaryOp("div", "/");
-export const MaxOp = new BinaryOp("_max", "max", true);
-export const MinOp = new BinaryOp("_min", "min", true);
-export const PowOp = new BinaryOp("_pow", "pow", true);
+}
 
-export const EqualOp = new CompareOp("_equal", "==");
-export const GreaterOp = new CompareOp("_greater", ">");
+// Op Map
+export default {
+    // mem ops
+    "reshape": new Reshape(),
+
+    // unary ops
+    "neg": new UnaryOp("_neg", "-"),
+    "round": new UnaryOp("_round", "round"),
+    "abs": new UnaryOp("_abs", "abs"),
+    "ceil": new UnaryOp("_ceil", "ceil"),
+    "floor": new UnaryOp("_floor", "floor"),
+    "log": new UnaryOp("_log", "log"),
+    "exp": new UnaryOp("_exp", "exp"),
+    "log2": new UnaryOp("_log2", "log2"),
+    "exp2": new UnaryOp("_exp2", "exp2"),
+    "sqrt": new UnaryOp("_sqrt", "sqrt"),
+    "sin": new UnaryOp("_sin", "sin"),
+    "cos": new UnaryOp("_cos", "cos"),
+    "tan": new UnaryOp("_tan", "tan"),
+    "asin": new UnaryOp("_asin", "asin"),
+    "acos": new UnaryOp("_acos", "acos"),
+    "atan": new UnaryOp("_atan", "atan"),
+    "sinh": new UnaryOp("_sinh", "sinh"),
+    "cosh": new UnaryOp("_cosh", "cosh"),
+    "tanh": new UnaryOp("_tanh", "tanh"),
+
+    // binary ops
+    "add": new BinaryOp("add", "+"),
+    "sub": new BinaryOp("sub", "-"),
+    "mul": new BinaryOp("mul", "*"),
+    "div": new BinaryOp("div", "/"),
+    "max": new BinaryOp("_max", "max", true),
+    "min": new BinaryOp("_min", "min", true),
+    "pow": new BinaryOp("_pow", "pow", true),
+
+    // compare ops
+    "equal": new CompareOp("_equal", "=="),
+    "greater": new CompareOp("_greater", ">")
+} as Record<OpId, Op>;
