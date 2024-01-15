@@ -257,14 +257,14 @@ export class Tensor {
   }
 
   reshape(new_shape: Shape) {
-    if(isSameShape(this.shape, new_shape)) {
+    if (isSameShape(this.shape, new_shape)) {
       return this;
     }
     let size = 1;
     let infer_idx = -1;
-    for(let i = 0; i < new_shape.length; ++i) {
-      if(new_shape[i] == -1) {
-        if(infer_idx != -1) {
+    for (let i = 0; i < new_shape.length; ++i) {
+      if (new_shape[i] == -1) {
+        if (infer_idx != -1) {
           throw new Error("Only one dimension can be inferred");
         }
         infer_idx = i;
@@ -272,17 +272,17 @@ export class Tensor {
         size *= new_shape[i];
       }
     }
-    if(size > 0) {
-      if(infer_idx >= 0) {
+    if (size > 0) {
+      if (infer_idx >= 0) {
         let remain = this.numElements / size;
-        if(remain != Math.floor(remain)) {
+        if (remain != Math.floor(remain)) {
           throw new Error("Cannot reshape to new shape");
         }
         new_shape[infer_idx] = remain;
         size *= remain;
       }
     }
-    if(this.numElements != size) {
+    if (this.numElements != size) {
       throw new Error("Cannot reshape to new shape");
     }
     return new Tensor({ shape: new_shape, dtype: this._dtype, op: "reshape", inputs: [this] });
@@ -300,7 +300,33 @@ export class Tensor {
     for (let i = this.shape.length - 1; i >= 0; --i) {
       strides[i + diff] = (this.shape[i] == 1) ? 0 : this._strides[i];
     }
-    return new Tensor({ shape: new_shape, dtype: this._dtype, strides: strides, op: "broadcast", inputs: [this] });
+    return new Tensor({ shape: new_shape, strides: strides, dtype: this._dtype, op: "broadcast", inputs: [this] });
+  }
+
+  flatten(start_axis: number = 0, end_axis: number = -1) {
+    if (this.ndim == 0) {
+      return this.reshape([1]);
+    }
+    let _start_axis = start_axis + (start_axis < 0 ? this.ndim : 0);
+    let _end_axis = end_axis + (end_axis < 0 ? this.ndim : 0);
+    if (_end_axis < _start_axis) {
+      throw new Error("start_axis must be smaller than end_axis");
+    }
+    if (_start_axis >= this.ndim || _end_axis < 0) {
+      throw new Error("start_axis or end_axis out of range");
+    }
+    if (_start_axis == _end_axis) {
+      return this;
+    }
+    let new_shape = [];
+    for (let i = 0; i < _start_axis; ++i) {
+      new_shape.push(this.shape[i]);
+    }
+    new_shape.push(-1);
+    for (let i = _end_axis + 1; i < this.ndim; ++i) {
+      new_shape.push(this.shape[i]);
+    }
+    return this.reshape(new_shape);
   }
 
   async eval() {

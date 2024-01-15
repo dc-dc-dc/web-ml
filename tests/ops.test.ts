@@ -100,3 +100,12 @@ test("reshape", async () => {
   b = a.reshape([2, 2]);
   await equalTensor(b, new Tensor({ shape: [2, 2], dtype: float32, data: [1, 2, 3, 4] }));
 });
+
+test("flatten", async () => {
+  let a = new Tensor({ shape: [2,2], dtype: float32, data: [1, 2, 3, 4] });
+  let b = a.flatten();
+  await equalTensor(b, new Tensor({ shape: [4], dtype: float32, data: [1, 2, 3, 4] }));
+  a = new Tensor({ shape: [4], dtype: float32, data: [1, 2, 3, 4] });
+  b = a.flatten();
+  await equalTensor(b, new Tensor({ shape: [4], dtype: float32, data: [1, 2, 3, 4] }));
+})

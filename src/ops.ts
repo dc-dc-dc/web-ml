@@ -233,10 +233,19 @@ class Reshape implements Op {
     }
 }
 
+class Broadcast implements Op {
+    async eval(inputs: Tensor[]): Promise<TypedArray> {
+        if(inputs.length != 2) throw new Error("Broadcast requires two args");
+        let input = inputs[0];
+        return input.data;
+    }
+}
+
 // Op Map
 const res: Record<OpId, Op> = {
     // mem ops
     "reshape": new Reshape(),
+    "broadcast": new Broadcast(),
 
     // unary ops
     "neg": new UnaryOp("_neg", "-"),
