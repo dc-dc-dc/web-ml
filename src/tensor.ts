@@ -257,6 +257,38 @@ export class Tensor {
   }
 
   reshape(new_shape: Shape) {
+    if(isSameShape(this.shape, new_shape)) {
+      return this;
+    }
+    let size = 1;
+    let infer_idx = -1;
+    for(let i = 0; i < new_shape.length; ++i) {
+      if(new_shape[i] == -1) {
+        if(infer_idx != -1) {
+          throw new Error("Only one dimension can be inferred");
+        }
+        infer_idx = i;
+      } else {
+        size *= new_shape[i];
+      }
+    }
+    if(size > 0) {
+      if(infer_idx >= 0) {
+        let remain = this.numElements / size;
+        if(remain != Math.floor(remain)) {
+          throw new Error("Cannot reshape to new shape");
+        }
+        new_shape[infer_idx] = remain;
+        size *= remain;
+      }
+    }
+    if(this.numElements != size) {
+      throw new Error("Cannot reshape to new shape");
+    }
+    return new Tensor({ shape: new_shape, dtype: this._dtype, op: "reshape", inputs: [this] });
+  }
+
+  broadcast(new_shape: Shape) {
     if (isSameShape(this.shape, new_shape)) {
       return this;
     }
@@ -268,7 +300,7 @@ export class Tensor {
     for (let i = this.shape.length - 1; i >= 0; --i) {
       strides[i + diff] = (this.shape[i] == 1) ? 0 : this._strides[i];
     }
-    return new Tensor({ shape: new_shape, dtype: this._dtype, strides: strides, op: "reshape", inputs: [this] });
+    return new Tensor({ shape: new_shape, dtype: this._dtype, strides: strides, op: "broadcast", inputs: [this] });
   }
 
   async eval() {

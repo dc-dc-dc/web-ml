@@ -1,6 +1,7 @@
 import type { Dtype, Op, OpId, TypedArray } from "./web-ml";
 import { getDtypeSize, float32, int32, uint32 } from "./dtype";
 import { Tensor } from "./tensor";
+import { copy1D, copy2D, copy3D, copy4D, copySingle } from "./copy";
 
 class WebGpuBackend {
     // this is set in init since constructors cant be async
@@ -205,14 +206,35 @@ class CompareOp implements Op {
 
 class Reshape implements Op {
     async eval(inputs: Tensor[]): Promise<TypedArray> {
-        const res = new Float32Array();
+        if (inputs.length != 2) throw new Error("Reshape requires two inputs");
+        const input = inputs[0];
+        if (input.ndim > 4) throw new Error("Reshape only supports up to 4 dimensions");
+        const output = inputs[1];
+        const res = new Float32Array(output.numElements);
+        if (input.numElements == 1) {
+            copySingle(input.data[0], res);
+        } else {
+            switch (input.ndim) {
+                case 1:
+                    copy1D(input.data, input.shape, input.strides, res);
+                    break;
+                case 2:
+                    copy2D(input.data, input.shape, input.strides, res);
+                    break;
+                case 3:
+                    copy3D(input.data, input.shape, input.strides, res);
+                    break;
+                case 4:
+                    copy4D(input.data, input.shape, input.strides, res);
+                    break;
+            }
+        }
         return res;
     }
-
 }
 
 // Op Map
-export default {
+const res: Record<OpId, Op> = {
     // mem ops
     "reshape": new Reshape(),
 
@@ -249,4 +271,6 @@ export default {
     // compare ops
     "equal": new CompareOp("_equal", "=="),
     "greater": new CompareOp("_greater", ">")
-} as Record<OpId, Op>;
+};
+
+export default res;
